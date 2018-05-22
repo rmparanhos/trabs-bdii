@@ -6,6 +6,7 @@ create table restaurante(
 	telefone varchar not null,
 	categoria varchar,
 	pontuacao float, --ideia: fazer um trigger que calcula a pontuacao toda vez q recebe um review da compra de um produto
+	valor_min float,
 	constraint pk_restaurante primary key(ident_r),
 	constraint fk1_restaurante foreign key(dono) references usuario(ident_u),
 	constraint fk2_restaurante foreign key(categoria) references categoria(nome)
@@ -39,6 +40,7 @@ create table produto(
 create table pedido(
 	ident_pe serial,
 	comprador int not null,
+	restaurante int not null,
 	subtotal float, --trigger
 	pagamento varchar not null,
 	numero_cartao varchar,
@@ -48,7 +50,8 @@ create table pedido(
 	constraint fk1_pedido foreign key(comprador) references usuario(ident_u),
 	constraint fk2_pedido foreign key(pagamento) references tipo_pagamento(nome),
 	constraint fk3_pedido foreign key(numero_cartao) references cartao(numero),
-	constraint fk4_pedido foreign key(endereco) references endereco(rua)
+	constraint fk4_pedido foreign key(endereco) references endereco(rua),
+	constraint fk5_pedido foreign key(restaurante) references restaurante(ident_r)
 );
 
 create table compras_pedido(
@@ -84,9 +87,9 @@ create table cartao(
 );
 
 CREATE TRIGGER check_pontuacao
-    BEFORE INSERT ON compras_pedido
-    FOR EACH ROW
-    EXECUTE PROCEDURE check_pontuacao();
+BEFORE INSERT ON compras_pedido
+FOR EACH ROW
+EXECUTE PROCEDURE check_pontuacao();
 
 CREATE OR REPLACE FUNCTION check_pontuacao() RETURNS trigger AS $$
 BEGIN
@@ -99,9 +102,9 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER calc_pontuacao_produto
-    AFTER INSERT ON compras_pedido
-    FOR EACH ROW
-    EXECUTE PROCEDURE calc_pontuacao_produto();
+AFTER INSERT ON compras_pedido
+FOR EACH ROW
+EXECUTE PROCEDURE calc_pontuacao_produto();
 
 CREATE OR REPLACE FUNCTION calc_pontuacao_produto() RETURNS trigger AS $$
 DECLARE
@@ -121,9 +124,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER calc_pontuacao_restaurante
-    AFTER UPDATE ON produto
-    FOR EACH ROW
-    EXECUTE PROCEDURE calc_pontuacao_restaurante();
+AFTER UPDATE ON produto
+FOR EACH ROW
+EXECUTE PROCEDURE calc_pontuacao_restaurante();
 
 CREATE OR REPLACE FUNCTION calc_pontuacao_restaurante() RETURNS trigger AS $$
 DECLARE
@@ -138,6 +141,53 @@ BEGIN
 	update restaurante
 	set pontuacao = soma/contador
 	where ident_r = new.loja_id;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER subtotal_pedido
+AFTER INSERT ON pedido
+FOR EACH ROW
+EXECUTE PROCEDURE subtotal_pedido();
+
+CREATE OR REPLACE FUNCTION subtotal_pedido() RETURNS trigger AS $$
+	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
+	soma float = 0;
+BEGIN
+	for record in curs loop
+		soma = soma + select preco from produto where ident_p = record.produto;
+	end loop;
+	update pedido
+	set subtotal = soma
+	where ident_pe = new.ident_pe
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_valor_min
+AFTER UPDATE ON pedido
+FOR EACH ROW
+EXECUTE PROCEDURE check_valor_min();
+
+CREATE OR REPLACE FUNCTION check_valor_min() RETURNS trigger AS $$
+	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
+	valor_min float = 0;
+BEGIN
+	select valor_min
+	into valor_min
+	from restaurante
+	where ident_r = new.restaurante;
+	if(valor_min = null) then
+	
+	else
+		if(new.subtotal > valor_min) then	
+	end if;
+	for record in curs loop
+		soma = soma + select preco from produto where ident_p = record.produto;
+	end loop;
+	update pedido
+	set subtotal = soma
+	where ident_pe = new.ident_pe
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
