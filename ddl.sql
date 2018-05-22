@@ -223,6 +223,7 @@ FOR EACH ROW
 EXECUTE PROCEDURE check_pedido();
 
 CREATE OR REPLACE FUNCTION check_pedido() RETURNS trigger AS $$
+DECLARE
 	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
 	soma float = 0;
 	loja_id int;
