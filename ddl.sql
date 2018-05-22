@@ -166,7 +166,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER check_valor_min
-AFTER UPDATE ON pedido
+BEFORE UPDATE ON pedido
 FOR EACH ROW
 EXECUTE PROCEDURE check_valor_min();
 
@@ -216,3 +216,33 @@ BEGIN
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_pedido
+BEFORE INSERT ON compra_pedido
+FOR EACH ROW
+EXECUTE PROCEDURE check_pedido();
+
+CREATE OR REPLACE FUNCTION check_pedido() RETURNS trigger AS $$
+	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
+	soma float = 0;
+	loja_id int;
+	loja_produto int;
+BEGIN
+	select restaurante
+	into loja_id
+	from pedido
+	where ident_pe = new.pedido;
+	
+	select loja_id
+	into loja_produto
+	from produto
+	where ident_p = new.produto;
+	
+	if(loja_id <> loja_produto) then
+		raise exception 'produto nao pertence a loja do pedido';
+	end if;
+	
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
