@@ -7,6 +7,7 @@ create table restaurante(
 	categoria varchar,
 	pontuacao float, --ideia: fazer um trigger que calcula a pontuacao toda vez q recebe um review da compra de um produto
 	valor_min float,
+	precisa_cpf boolean,
 	constraint pk_restaurante primary key(ident_r),
 	constraint fk1_restaurante foreign key(dono) references usuario(ident_u),
 	constraint fk2_restaurante foreign key(categoria) references categoria(nome)
@@ -184,6 +185,34 @@ BEGIN
 			raise excpetion 'valor do pedido menor que o minimo da loja';
 		end if;
 	end if;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_cpf
+BEFORE INSERT ON pedido
+FOR EACH ROW
+EXECUTE PROCEDURE check_cpf();
+
+CREATE OR REPLACE FUNCTION check_pontuacao() RETURNS trigger AS $$
+DECLARE
+	precisa_cpf boolean;
+	cpf_usuario varchar;
+BEGIN
+	select precisa_cpf
+	into precisa_cpf
+	from restaurante
+	where ident_r = new.restaurante;
+	if (precisa_cpf = true) then
+		select cpf
+		into cpf_usuario
+		from usuario
+		where ident_u = new.comprador;
+		if(cpf_usuario = null) then
+			raise exception 'usuario nao possui cpf cadastrado';
+		end if;
+	end if;
+	
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
