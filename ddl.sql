@@ -247,3 +247,24 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+create or replace function total_vendido() returns 
+	table(ident_p int,
+		qtd_vendas int,
+		total int) as $$
+declare
+	c_cp cursor (idt int) for select * from compras_pedido where produto=idt for share of compras_pedido;
+	r1 produto%rowtype;
+	r2 compras_pedido%rowtype;
+	qtd_vendas int;
+	total float;
+begin
+	for r1 in select * from produto loop
+		qtd_vendas = 0;
+		total = 0;
+		for r2 in c_cp(r1.ident_p) loop
+			qtd_vendas = qtd_vendas + 1;
+		end loop;
+		total = r1.preco * qtd_vendas;
+		return query select r1.ident_p, qtd_vendas, total;
+	end loop;
+end; $$ language 'plpgsql';
