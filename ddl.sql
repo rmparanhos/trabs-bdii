@@ -170,7 +170,7 @@ FOR EACH ROW
 EXECUTE PROCEDURE check_valor_min();
 
 CREATE OR REPLACE FUNCTION check_valor_min() RETURNS trigger AS $$
-	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
+DECLARE
 	valor_min float = 0;
 BEGIN
 	select valor_min
@@ -180,14 +180,10 @@ BEGIN
 	if(valor_min = null) then
 	
 	else
-		if(new.subtotal > valor_min) then	
+		if(new.subtotal < valor_min) then
+			raise excpetion 'valor do pedido menor que o minimo da loja';
+		end if;
 	end if;
-	for record in curs loop
-		soma = soma + select preco from produto where ident_p = record.produto;
-	end loop;
-	update pedido
-	set subtotal = soma
-	where ident_pe = new.ident_pe
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
