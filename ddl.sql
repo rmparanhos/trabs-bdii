@@ -57,6 +57,7 @@ create table pedido(
 	numero_cartao varchar,
 	endereco varchar not null,
 	momento timestamp not null,
+	confirmado boolean default false,
 	constraint pk_pedido primary key(ident_pe),
 	constraint fk1_pedido foreign key(comprador) references usuario(ident_u),
 	constraint fk2_pedido foreign key(pagamento) references tipo_pagamento(nome),
