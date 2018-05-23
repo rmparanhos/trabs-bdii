@@ -1,3 +1,13 @@
+drop table cartao cascade;
+drop table categoria cascade;
+drop table compras_pedido cascade;
+drop table endereco cascade;
+drop table pedido cascade;
+drop table produto cascade;
+drop table restaurante cascade;
+drop table tipo_pagamento cascade;
+drop table usuario cascade;
+
 create table restaurante(
 	ident_r serial, --int auto increment
 	nome varchar not null,
@@ -147,20 +157,27 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER subtotal_pedido
-AFTER INSERT ON pedido
+AFTER INSERT ON compras_pedido
 FOR EACH ROW
 EXECUTE PROCEDURE subtotal_pedido();
 
 CREATE OR REPLACE FUNCTION subtotal_pedido() RETURNS trigger AS $$
-	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
+DECLARE
 	soma float = 0;
+	atual float = 0;
 BEGIN
-	for record in curs loop
-		soma = soma + select preco from produto where ident_p = record.produto;
-	end loop;
+	select subtotal
+	into soma
+	from pedido
+	where ident_pe = new.pedido;
+	select preco
+	into atual
+	from produto
+	where ident_p = new.produto;
+	soma = soma + atual;
 	update pedido
 	set subtotal = soma
-	where ident_pe = new.ident_pe
+	where ident_pe = new.pedido;
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -172,17 +189,17 @@ EXECUTE PROCEDURE check_valor_min();
 
 CREATE OR REPLACE FUNCTION check_valor_min() RETURNS trigger AS $$
 DECLARE
-	valor_min float = 0;
+	valor_min_f float = 0;
 BEGIN
 	select valor_min
-	into valor_min
+	into valor_min_f
 	from restaurante
 	where ident_r = new.restaurante;
-	if(valor_min = null) then
-	
+	if(valor_min_f = null) then
+
 	else
-		if(new.subtotal < valor_min) then
-			raise excpetion 'valor do pedido menor que o minimo da loja';
+		if(new.subtotal < valor_min_f) then
+			raise exception 'valor do pedido menor que o minimo da loja';
 		end if;
 	end if;
 RETURN NEW;
@@ -194,31 +211,32 @@ BEFORE INSERT ON pedido
 FOR EACH ROW
 EXECUTE PROCEDURE check_cpf();
 
-CREATE OR REPLACE FUNCTION check_pontuacao() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION check_cpf() RETURNS trigger AS $$
 DECLARE
-	precisa_cpf boolean;
+	precisa_cpf_bool boolean;
 	cpf_usuario varchar;
 BEGIN
 	select precisa_cpf
-	into precisa_cpf
+	into precisa_cpf_bool
 	from restaurante
 	where ident_r = new.restaurante;
-	if (precisa_cpf = true) then
+	if (precisa_cpf_bool = true) then
 		select cpf
 		into cpf_usuario
 		from usuario
 		where ident_u = new.comprador;
-		if(cpf_usuario = null) then
+		raise notice '%f',cpf_usuario;
+		if(cpf_usuario is null) then
 			raise exception 'usuario nao possui cpf cadastrado';
 		end if;
 	end if;
-	
+
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER check_pedido
-BEFORE INSERT ON compra_pedido
+BEFORE INSERT ON compras_pedido
 FOR EACH ROW
 EXECUTE PROCEDURE check_pedido();
 
@@ -226,31 +244,33 @@ CREATE OR REPLACE FUNCTION check_pedido() RETURNS trigger AS $$
 DECLARE
 	curs cursor for select produto from compras_pedido where pedido = new.ident_pe;
 	soma float = 0;
-	loja_id int;
+	loja_id_f int;
 	loja_produto int;
 BEGIN
 	select restaurante
-	into loja_id
+	into loja_id_f
 	from pedido
 	where ident_pe = new.pedido;
-	
+
 	select loja_id
 	into loja_produto
 	from produto
 	where ident_p = new.produto;
-	
-	if(loja_id <> loja_produto) then
+
+	if(loja_id_f <> loja_produto) then
 		raise exception 'produto nao pertence a loja do pedido';
 	end if;
-	
+
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function total_vendido() returns 
+select * from total_vendido() order by qtd_vendas desc;
+DROP FUNCTION total_vendido();
+create or replace function total_vendido() returns
 	table(ident_p int,
 		qtd_vendas int,
-		total int) as $$
+		total float) as $$
 declare
 	c_cp cursor (idt int) for select * from compras_pedido where produto=idt for share of compras_pedido;
 	r1 produto%rowtype;
