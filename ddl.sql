@@ -184,8 +184,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER check_valor_min
-BEFORE UPDATE ON pedido
+BEFORE UPDATE of confirmado ON pedido
 FOR EACH ROW
+WHEN (new.confirmado = true)
 EXECUTE PROCEDURE check_valor_min();
 
 CREATE OR REPLACE FUNCTION check_valor_min() RETURNS trigger AS $$
