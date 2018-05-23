@@ -278,6 +278,18 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER impede_preco_produto
+BEFORE UPDATE OF preco OR DELETE ON produto
+FOR EACH ROW
+EXECUTE PROCEDURE impede_preco_produto();
+
+CREATE OR REPLACE FUNCTION impede_preco_produto() RETURNS trigger AS $$
+BEGIN
+	raise exception 'preco nao pode ser alterado, contate o suporte';
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 
 select * from total_vendido() order by qtd_vendas desc;
 DROP FUNCTION total_vendido();
