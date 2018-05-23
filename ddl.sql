@@ -266,6 +266,19 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER impede_valormin_restaurante
+BEFORE UPDATE OF valor_min ON restaurante
+FOR EACH ROW
+EXECUTE PROCEDURE impede_valormin_restaurante();
+
+CREATE OR REPLACE FUNCTION impede_valormin_restaurante() RETURNS trigger AS $$
+BEGIN
+	raise exception 'valor minimo nao pode ser alterado, contate o suporte';
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
 select * from total_vendido() order by qtd_vendas desc;
 DROP FUNCTION total_vendido();
 create or replace function total_vendido() returns
