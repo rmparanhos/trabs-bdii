@@ -362,15 +362,11 @@ declare
 					order by restaurante.nome;
 	qtd_vendas_f int;
 	total_f float;
-	res_ant varchar = 'x';
+	res_ant varchar;
 begin
 	for record in curs loop
-	raise notice '%',record.nome_res;
-	raise notice '%',res_ant;
-		if(record.nome_res != res_ant) then
-		raise notice 'oi';
+		if(record.nome_res <> res_ant or res_ant is null) then
 			if(res_ant is not null) then
-			raise notice 'oi2';
 				return query select res_ant, qtd_vendas_f, total_f;
 			end if;
 			qtd_vendas_f = 0;
@@ -380,6 +376,8 @@ begin
 		qtd_vendas_f = qtd_vendas_f + record.qtd_vendas;
 		total_f = total_f + record.total;
 	end loop;
+	return query select res_ant, qtd_vendas_f, total_f;
 end; $$ language 'plpgsql';
 
-select * from total_vendido_restaurante();
+select * from total_vendido_restaurante() order by total_f desc;
+
