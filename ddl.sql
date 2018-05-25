@@ -98,6 +98,13 @@ create table cartao(
 	constraint fk_cartao foreign key(titular) references usuario(ident_u)
 );
 
+create table areas_entrega(
+	restaurante int not null,
+	endereco varchar not null,
+	constraint pk_areas_entrega primary key(restaurante, endereco),
+	constraint fk_restaurante foreign key(restaurante) references restaurante(ident_r)
+);
+
 CREATE TRIGGER check_pontuacao
 BEFORE INSERT ON compras_pedido
 FOR EACH ROW
@@ -267,6 +274,32 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER check_endereco
+BEFORE INSERT ON pedido
+FOR EACH ROW
+EXECUTE PROCEDURE check_endereco()
+
+CREATE OR REPLACE FUNCTION check_endereco() RETURNS trigger AS $$
+DECLARE
+	curs cursor for select endereco from areas_entrega where restaurante = new.restaurante;
+	endereco_restaurante varchar;
+BEGIN
+	for record in curs loop
+		if(new.endereco = record.endereco) then
+			return new;
+		end if;
+	end loop;
+	select endereco
+	into endereco_restaurante
+	from restaurante 
+	where ident_r = new.restaurante;
+	if(new.endereco = endereco_restaurante ) then
+		return new;
+	end if;
+	raise exception 'endereco de entrega do pedido nao faz parte da area de entrega do restaurante';
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER impede_valormin_restaurante
 BEFORE UPDATE OF valor_min ON restaurante
 FOR EACH ROW
@@ -292,9 +325,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-select * from total_vendido() order by qtd_vendas desc;
-DROP FUNCTION total_vendido();
-create or replace function total_vendido() returns
+select nome,descricao,preco,pontuacao,qtd_vendas,total from total_vendido_produto() as p inner join produto on p.ident_p = produto.ident_p order by total desc;
+create or replace function total_vendido_produto() returns
 	table(ident_p int,
 		qtd_vendas int,
 		total float) as $$
