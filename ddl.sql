@@ -347,3 +347,39 @@ begin
 		return query select r1.ident_p, qtd_vendas, total;
 	end loop;
 end; $$ language 'plpgsql';
+
+select * from total_vendido_produto() inner join produto ;
+drop function total_vendido_restaurante()
+create or replace function total_vendido_restaurante() returns
+	table(restaurante varchar,
+		qtd_vendas_f int,
+		total_f float) as $$
+declare
+	curs cursor for select produto.nome,descricao,preco,produto.pontuacao,qtd_vendas,total,restaurante.nome as nome_res,restaurante.pontuacao 
+					from total_vendido_produto() as p 
+					inner join produto on p.ident_p = produto.ident_p 
+					inner join restaurante on produto.loja_id = restaurante.ident_r
+					order by restaurante.nome;
+	qtd_vendas_f int;
+	total_f float;
+	res_ant varchar = 'x';
+begin
+	for record in curs loop
+	raise notice '%',record.nome_res;
+	raise notice '%',res_ant;
+		if(record.nome_res != res_ant) then
+		raise notice 'oi';
+			if(res_ant is not null) then
+			raise notice 'oi2';
+				return query select res_ant, qtd_vendas_f, total_f;
+			end if;
+			qtd_vendas_f = 0;
+			total_f = 0;
+			res_ant = record.nome_res;
+		end if;
+		qtd_vendas_f = qtd_vendas_f + record.qtd_vendas;
+		total_f = total_f + record.total;
+	end loop;
+end; $$ language 'plpgsql';
+
+select * from total_vendido_restaurante();
